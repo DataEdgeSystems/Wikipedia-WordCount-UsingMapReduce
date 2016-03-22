@@ -1,0 +1,70 @@
+/** Program 2 - Standalone Scala Script */
+package com.cloudera.sparkwordcount
+
+import org.apache.spark.SparkContext._
+import org.apache.spark.{SparkConf, SparkContext}
+
+/**
+* Computes the PageRank of wikipedia voters from an input file.
+*
+* Input file should be in format of:
+* Wiki_User    Voted_Wiki_User
+* Wiki_User    Voted_Wiki_User
+* Wiki_User    Voted_Wiki_User
+*
+* where Wiki_User and Voted_Wiki_User are separated by TAB.
+*/
+
+object SparkPageRank
+{
+
+    def main(args: Array[String])
+    {
+		//checking to see if the user has entered all the required args
+        if (args.length < 2)
+        {
+            System.err.println("Usage: SparkPageRank <InputFile> <iter> <OutputFile> ")
+            System.exit(1)
+        }
+
+		val inputFile = args(0)
+		val outputFile = args(2)
+		
+		// Create a new SparkContext with the args as <spark-master>, <application_Name>, <Spark_Home> and <Jars>
+        val sc = new SparkContext("spark://hdn1001.local:7077", "Scala Word Count","/usr/lib/spark", SparkContext.jarOfClass(this.getClass).toSeq)
+       
+	    // Parsing the number of iterations entered by the user. Defaults to 10
+        val iters = if (args.length > 0) args(1).toInt else 10
+		
+		// Parsing the InputFile using SparkContext object sc 
+        val lines = sc.textFile(inputFile, 1)
+		
+		// Page Rank processing - finding the various links in the given InputFile
+        lines.map(s=>s.split("\t")).map(parts=>(parts(0),parts(1))).distinct.groupByKey().collect
+        val links = lines.map(s=>s.split("\t")).map(parts=>(parts(0),parts(1))).distinct.groupByKey().cache()
+       
+	    // Assigning an initial weight (rank) to each link 
+        var ranks = links.mapValues(v => 1.0)
+       
+	    // Based on the links between various pages, modifying the rank of each link
+        for (i <- 1 to iters)
+        {
+            val contribs = links.join(ranks).values.flatMap{ case (voters, rank) => 
+			val size = voters.size
+			voters.map(voter => (voter, rank / size))
+            }
+            ranks = contribs.reduceByKey(_ + _).mapValues(0.15 + 0.85 * _)
+        }
+       
+        val output = ranks.collect()
+
+		// Saving the output to a TextFile in HDFS
+		sc.makeRDD(output).saveAsTextFile(outputFile)
+		
+	    // Printing the output of PageRank on console
+        //output.foreach(tup => println(tup._1 + " has rank: " + tup._2 + "."))
+		
+		// closing the SparkContext object
+        sc.stop()
+    }
+}

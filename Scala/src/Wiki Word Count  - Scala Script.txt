@@ -1,0 +1,60 @@
+/** Program 1 - Standalone Scala Script */
+package com.cloudera.sparkwordcount
+
+import org.apache.spark.SparkContext
+import org.apache.spark.SparkContext._
+import org.apache.spark.SparkConf
+
+/**
+  * Program to check for a keyword in a wiki article's title or content.
+  *
+  * It requires 3 arguments
+  * Input_File - Path to the input file you want to specify. 
+  * KeyWord - Keyword you want to search.
+  * Output_File - Path to the output file where you want to save data.
+  *
+  * @author Sarang
+  */
+object SparkWordCount 
+{
+	def main(args: Array[String]) 
+	{
+		//checking to see if the user has entered all the required args
+		if (args.length < 3) 
+		{
+			System.err.println("Usage: <Input_File> <KeyWord> <Output_File>")
+			System.exit(1)
+		}
+		
+		val inputFile = args(0)
+		val outputFile = args(2)
+		val keyword = args(1).toLowerCase()
+
+		// Create a new SparkContext with the args as <spark-master>, <application_Name>, <Spark_Home> and <Jars>
+		val sc = new SparkContext("local", "Wikipedia DataSet - Article Keyword Count", "/usr/lib/spark", SparkContext.jarOfClass(this.getClass).toSeq)
+
+		// Input File
+		println("Parsing InputFile")
+		val file = sc.textFile(inputFile)
+		println("Parsing InputFile completed")
+		
+		// split each document into words based on filter for the keyword		
+		val words = file.filter(line => line.toLowerCase().contains(keyword)) 
+		println("Split each line of the InputFile into words")
+		
+		// Count the occurrences of the keyword
+		var result = words.count()
+		 
+		// Saving the output to a File on HDFS
+		val out = "The given keyword " + keyword + " occurred " + result + " times."
+		var myList = Array(out)
+		sc.makeRDD(out).saveAsTextFile(outputFile)
+		
+		// print the output on screen
+		println("The number of articles containing the given keyword is "+result)
+		println("Program 1 Completed")
+		
+		// closing the SparkContext object
+        sc.stop()
+	}
+}

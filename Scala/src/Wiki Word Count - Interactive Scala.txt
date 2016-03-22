@@ -1,0 +1,16 @@
+/** Program 1 - Interactive Scala Script */
+
+// Enter Keyword to search for
+println("Enter the keyword to search")
+var keyword = "keyword"
+keyword = keyword.toLowerCase()
+
+// Parsing the input file using SparkContext object sc.
+val file = sc.textFile("/CS5331_Examples/Programming_Project_Dataset.txt")
+
+// Using a filter and counting the occurrences of a word in each article
+val words = file.filter(line => line.toLowerCase().contains(keyword)) 
+val count = words.count()
+
+// Printing the output on screen
+println("The number of articles containing the given keyword, " + keyword +" is " + count)
